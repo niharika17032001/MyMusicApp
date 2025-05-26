@@ -1,42 +1,43 @@
-package com.example.mymusicapp
+package com.example.mymusicapp // CHANGED HERE
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.example.mymusicapp.model.Song
+import com.bumptech.glide.Glide
+import com.example.mymusicapp.databinding.ItemSongBinding // CHANGED HERE
 
 class SongAdapter(
     private val songs: List<Song>,
-    private val onItemClick: (Song, Int) -> Unit
+    private val onItemClick: (Song, Int) -> Unit // Pass song object and its position
 ) : RecyclerView.Adapter<SongAdapter.SongViewHolder>() {
 
-    inner class SongViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val titleTv: TextView = itemView.findViewById(R.id.songTitle)
-        val artistTv: TextView = itemView.findViewById(R.id.songArtist)
+    inner class SongViewHolder(private val binding: ItemSongBinding) :
+        RecyclerView.ViewHolder(binding.root) {
 
-        init {
-            itemView.setOnClickListener {
-                val pos = adapterPosition
-                if (pos != RecyclerView.NO_POSITION) {
-                    onItemClick(songs[pos], pos)
-                }
+        fun bind(song: Song, position: Int) {
+            binding.tvSongTitle.text = song.title
+            binding.tvArtistName.text = song.artist
+
+            Glide.with(binding.ivAlbumArt.context)
+                .load(song.albumArtUrl)
+                .placeholder(android.R.drawable.sym_def_app_icon) // Default placeholder
+                .error(android.R.drawable.sym_def_app_icon) // Error placeholder
+                .into(binding.ivAlbumArt)
+
+            binding.root.setOnClickListener {
+                onItemClick(song, position)
             }
         }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SongViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_song, parent, false)
-        return SongViewHolder(view)
+        val binding = ItemSongBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return SongViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: SongViewHolder, position: Int) {
-        val song = songs[position]
-        holder.titleTv.text = song.title
-        holder.artistTv.text = "" // no artist in model, you can add if you want
+        holder.bind(songs[position], position)
     }
 
-    override fun getItemCount() = songs.size
+    override fun getItemCount(): Int = songs.size
 }

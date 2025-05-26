@@ -1,11 +1,13 @@
-package com.example.mymusicapp.model
+package com.example.mymusicapp // CHANGED HERE
 
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
 
 @Parcelize
 data class Song(
+    val id: String,
     val title: String,
-    val url: String,
-    val art: String
+    val artist: String,
+    val albumArtUrl: String,
+    val audioUrl: String
 ) : Parcelable

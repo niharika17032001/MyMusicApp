@@ -1,140 +1,176 @@
-package com.example.mymusicapp
+package com.example.mymusicapp // CHANGED HERE
 
 import android.media.MediaPlayer
 import android.os.Bundle
-import android.os.Handler
-import android.widget.*
+import android.widget.SeekBar
 import androidx.appcompat.app.AppCompatActivity
 import com.bumptech.glide.Glide
-import com.example.mymusicapp.model.Song
+import com.example.mymusicapp.databinding.ActivityPlayerBinding // CHANGED HERE
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 
 class PlayerActivity : AppCompatActivity() {
 
-    private lateinit var mediaPlayer: MediaPlayer
-    private lateinit var playPauseButton: ImageButton
-    private lateinit var stopButton: ImageButton
-    private lateinit var nextButton: ImageButton
-    private lateinit var prevButton: ImageButton
-    private lateinit var progressBar: SeekBar
-    private lateinit var songTitleTextView: TextView
-    private lateinit var albumArtImageView: ImageView
-
-    private lateinit var songs: List<Song>
-    private var currentPosition: Int = 0
-
-    private val handler = Handler()
-    private var isPlaying = false
+    private lateinit var binding: ActivityPlayerBinding
+    private var mediaPlayer: MediaPlayer? = null
+    private lateinit var songList: ArrayList<Song>
+    private var currentSongIndex: Int = -1
+    private var playbackJob: Job? = null // Job for updating SeekBar
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_player)
+        binding = ActivityPlayerBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        playPauseButton = findViewById(R.id.playPauseButton)
-        stopButton = findViewById(R.id.stopButton)
-        nextButton = findViewById(R.id.nextButton)
-        prevButton = findViewById(R.id.prevButton)
-        progressBar = findViewById(R.id.progressBar)
-        songTitleTextView = findViewById(R.id.songTitleTextView)
-        albumArtImageView = findViewById(R.id.albumArtImageView)
+        // Retrieve data from Intent
+        currentSongIndex = intent.getIntExtra("current_song_index", 0)
+        songList = intent.getParcelableArrayListExtra("song_list") ?: arrayListOf()
 
-        songs = intent.getParcelableArrayListExtra<Song>("songs") ?: emptyList()
-        currentPosition = intent.getIntExtra("position", 0)
-
-        mediaPlayer = MediaPlayer()
-
-        playPauseButton.setOnClickListener {
-            if (isPlaying) pauseMusic() else playMusic()
+        if (songList.isEmpty()) {
+            finish() // Close activity if no songs are found
+            return
         }
 
-        stopButton.setOnClickListener {
-            stopMusic()
+        setupListeners()
+        playSong(currentSongIndex)
+    }
+
+    private fun setupListeners() {
+        binding.btnPlayPause.setOnClickListener {
+            togglePlayPause()
         }
 
-        nextButton.setOnClickListener {
-            nextSong()
+        binding.btnNext.setOnClickListener {
+            playNextSong()
         }
 
-        prevButton.setOnClickListener {
-            prevSong()
+        binding.btnPrevious.setOnClickListener {
+            playPreviousSong()
         }
 
-        progressBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+        binding.sbPlaybackProgress.setOnSeekBarChangeListener(object :
+            SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
-                    mediaPlayer.seekTo(progress)
+                    mediaPlayer?.seekTo(progress)
                 }
             }
 
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                // Pause updates while user is dragging
+                playbackJob?.cancel()
+            }
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                // Resume updates after user releases
+                startPlaybackUpdates()
+            }
         })
-
-        playSong(songs[currentPosition])
     }
 
-    private fun playSong(song: Song) {
-        mediaPlayer.reset()
-        mediaPlayer.setDataSource(song.url)
-        mediaPlayer.prepareAsync()
-
-        mediaPlayer.setOnPreparedListener {
-            it.start()
-            isPlaying = true
-            playPauseButton.setImageResource(android.R.drawable.ic_media_pause)
-
-            songTitleTextView.text = song.title
-            Glide.with(this).load(song.art).into(albumArtImageView)
-
-            progressBar.max = mediaPlayer.duration
-            updateProgress()
+    private fun playSong(index: Int) {
+        if (index < 0 || index >= songList.size) {
+            return // Prevent out of bounds
         }
 
-        mediaPlayer.setOnCompletionListener {
-            nextSong()
+        currentSongIndex = index
+        val song = songList[currentSongIndex]
+
+        // Release previous MediaPlayer instance if exists
+        mediaPlayer?.apply {
+            stop()
+            release()
+        }
+        mediaPlayer = null // Ensure it's null before creating a new one
+
+        // Update UI
+        binding.tvPlayerSongTitle.text = song.title
+        binding.tvPlayerArtistName.text = song.artist
+        Glide.with(this)
+            .load(song.albumArtUrl)
+            .placeholder(android.R.drawable.sym_def_app_icon)
+            .error(android.R.drawable.sym_def_app_icon)
+            .into(binding.ivPlayerAlbumArt)
+
+        mediaPlayer = MediaPlayer().apply {
+            setDataSource(song.audioUrl)
+            prepareAsync() // Prepare asynchronously for network streams
+            setOnPreparedListener { mp ->
+                mp.start()
+                binding.btnPlayPause.setImageResource(android.R.drawable.ic_media_pause)
+                binding.sbPlaybackProgress.max = mp.duration
+                binding.tvTotalTime.text = formatTime(mp.duration)
+                startPlaybackUpdates() // Start updating progress bar
+            }
+            setOnCompletionListener {
+                playNextSong() // Loop through playlist
+            }
+            setOnErrorListener { mp, what, extra ->
+                // Handle errors, e.g., show a Toast
+                mp.reset() // Reset MediaPlayer to idle state
+                false // Return false to indicate the error was not handled
+            }
         }
     }
 
-    private fun updateProgress() {
-        progressBar.progress = mediaPlayer.currentPosition
-        if (isPlaying) {
-            handler.postDelayed({ updateProgress() }, 1000)
+    private fun togglePlayPause() {
+        mediaPlayer?.let {
+            if (it.isPlaying) {
+                it.pause()
+                binding.btnPlayPause.setImageResource(android.R.drawable.ic_media_play)
+                playbackJob?.cancel() // Stop updates when paused
+            } else {
+                it.start()
+                binding.btnPlayPause.setImageResource(android.R.drawable.ic_media_pause)
+                startPlaybackUpdates() // Resume updates when playing
+            }
         }
     }
 
-    private fun playMusic() {
-        mediaPlayer.start()
-        isPlaying = true
-        playPauseButton.setImageResource(android.R.drawable.ic_media_pause)
-        updateProgress()
+    private fun playNextSong() {
+        currentSongIndex = (currentSongIndex + 1) % songList.size
+        playSong(currentSongIndex)
     }
 
-    private fun pauseMusic() {
-        mediaPlayer.pause()
-        isPlaying = false
-        playPauseButton.setImageResource(android.R.drawable.ic_media_play)
+    private fun playPreviousSong() {
+        currentSongIndex = (currentSongIndex - 1 + songList.size) % songList.size
+        playSong(currentSongIndex)
     }
 
-    private fun stopMusic() {
-        mediaPlayer.pause()
-        mediaPlayer.seekTo(0)
-        isPlaying = false
-        playPauseButton.setImageResource(android.R.drawable.ic_media_play)
-        progressBar.progress = 0
+    private fun startPlaybackUpdates() {
+        playbackJob?.cancel() // Cancel any existing job
+        playbackJob = CoroutineScope(Dispatchers.Main).launch {
+            while (mediaPlayer != null && mediaPlayer!!.isPlaying) {
+                val currentPosition = mediaPlayer!!.currentPosition
+                binding.sbPlaybackProgress.progress = currentPosition
+                binding.tvCurrentTime.text = formatTime(currentPosition)
+                delay(1000) // Update every second
+            }
+        }
     }
 
-    private fun nextSong() {
-        currentPosition = (currentPosition + 1) % songs.size
-        playSong(songs[currentPosition])
-    }
-
-    private fun prevSong() {
-        currentPosition = if (currentPosition - 1 < 0) songs.size - 1 else currentPosition - 1
-        playSong(songs[currentPosition])
+    private fun formatTime(milliseconds: Int): String {
+        val minutes = TimeUnit.MILLISECONDS.toMinutes(milliseconds.toLong())
+        val seconds = TimeUnit.MILLISECONDS.toSeconds(milliseconds.toLong()) % 60
+        return String.format("%02d:%02d", minutes, seconds)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        mediaPlayer.release()
-        handler.removeCallbacksAndMessages(null)
+        playbackJob?.cancel() // Cancel coroutine job
+        mediaPlayer?.release() // Release MediaPlayer resources
+        mediaPlayer = null
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // If you want the music to stop when the app is in the background, uncomment this:
+        // mediaPlayer?.pause()
+        // binding.btnPlayPause.setImageResource(android.R.drawable.ic_media_play)
+        // playbackJob?.cancel()
     }
 }

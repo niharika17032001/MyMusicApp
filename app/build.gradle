@@ -1,10 +1,8 @@
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.ksp)
-//    alias(libs.plugins.kotlin.parcelize)
-
-    id("kotlin-parcelize")
+    id("com.android.application") // Use 'id' for direct plugin application in Groovy for simple plugins
+    id("org.jetbrains.kotlin.android")
+    id("kotlin-parcelize") // Plugin for Parcelable
+    id("com.google.devtools.ksp") // Explicitly define KSP plugin as you use it for Moshi
 }
 
 android {
@@ -23,7 +21,7 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled = false // Correct Groovy assignment
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -34,54 +32,64 @@ android {
     kotlinOptions {
         jvmTarget = '11'
     }
+
     buildFeatures {
-        compose true
+        viewBinding = true // Only enable ViewBinding if using XML layouts
+        // REMOVE compose true if you are doing a View-based app
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.11"
-    }
+    // REMOVE composeOptions block if you are doing a View-based app
+    // composeOptions {
+    //     kotlinCompilerExtensionVersion = "1.5.11"
+    // }
 }
 
 dependencies {
     // Core Android
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
+    // implementation(libs.androidx.activity.compose) // REMOVE this for View-based app
 
-    // Compose BOM
-    implementation(platform(libs.androidx.compose.bom.v20240500))
+    // REMOVE ALL COMPOSE BOM and UI dependencies for a View-based app
+    // implementation(platform(libs.androidx.compose.bom.v20240500))
+    // implementation(libs.ui)
+    // implementation(libs.material3) // Use the standard Material Design library instead
+    // implementation(libs.ui.tooling.preview)
+    // debugImplementation(libs.ui.tooling)
 
-    // Compose UI
-    implementation(libs.ui)
-    implementation(libs.material3)
-    implementation(libs.ui.tooling.preview)
-    debugImplementation(libs.ui.tooling)
+    // Standard Android UI Libraries for View-based app
+    implementation 'androidx.appcompat:appcompat:1.6.1' // Add this for basic app compatibility
+    implementation 'com.google.android.material:material:1.12.0' // Standard Material Design for Views
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4' // For ConstraintLayouts in XML
 
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom.v20240500))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.test.manifest)
+    // REMOVE Compose testing dependencies
+    // androidTestImplementation(platform(libs.androidx.compose.bom.v20240500))
+    // androidTestImplementation(libs.androidx.ui.test.junit4)
+    // debugImplementation(libs.androidx.ui.test.manifest)
 
-    // Network + JSON
+    // Network + JSON (Keep these if you need them for fetching music data)
     implementation(libs.gson)
     implementation(libs.okhttp)
     implementation(libs.moshi)
     implementation(libs.moshi.kotlin)
-    ksp(libs.moshi.kotlin.codegen)
+    ksp(libs.moshi.kotlin.codegen) // Correct KSP for Moshi
 
-    implementation libs.androidx.compose.material3.material3
-    implementation libs.material.v1110
+    // Glide for image loading
+    // Choose ONE way to declare Glide: either directly or via libs.versions.toml
+    // Using libs.versions.toml is preferred for consistency:
+    implementation(libs.glide) // This refers to glide = { module = "com.github.bumptech.glide:glide", version.ref = "glide" } (4.15.1)
+    // For Glide's annotation processor with KSP, use ksp. If not using KSP, use annotationProcessor.
+    // Since you have the KSP plugin, let's use KSP for Glide if available.
+    // NOTE: Glide's KSP compiler was added in later versions (4.16.0+).
+    // If 4.15.1 doesn't have KSP compiler, you might need to use annotationProcessor OR upgrade Glide to 4.16.0.
+    // Let's assume you want to use KSP if possible for all processors.
+    ksp 'com.github.bumptech.glide:compiler:4.16.0' // Use 4.16.0 here if 4.15.1 doesn't have KSP support
+    // If the above fails, revert to: annotationProcessor 'com.github.bumptech.glide:compiler:4.15.1'
 
-
-    implementation 'com.github.bumptech.glide:glide:4.15.1'
-    annotationProcessor 'com.github.bumptech.glide:compiler:4.15.1'
-
-
-    // Image loading
-    implementation(libs.glide)
-    // Optional: if you use Glide's annotation processor:
-    // kapt("com.github.bumptech.glide:compiler:4.16.0")
+    // Remove redundant Material/Material3 declarations
+    // implementation libs.androidx.compose.material3.material3 // This is a Compose material3 library
+    // implementation libs.material.v1110 // Redundant if using com.google.android.material:material:1.12.0
 }
