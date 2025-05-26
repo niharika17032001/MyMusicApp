@@ -1,7 +1,23 @@
 [
   {
-    "title": "Aankhon feat. Ankur Tewari",
-    "url": "https://pagalworldmusic.com/download.php?title=Aankhon+feat.+Ankur+Tewari-320kbps&path=downloads%2Fhigh%2FGCMTcwNWWnc%2FGCMTcwNWWnc.mp3",
-    "art": "https://pagalworldmusic.com/downloads/cover/4572576/4572576.jpg",
+    "id": "1",
+    "title": "Upbeat Acoustic",
+    "artist": "Zapsplat",
+    "albumArtUrl": "https://pagalworldmusic.com/downloads/cover/4572576/4572576.jpg",
+    "audioUrl": "https://pagalworldmusic.com/download.php?title=Aankhon+feat.+Ankur+Tewari-320kbps&path=downloads%2Fhigh%2FGCMTcwNWWnc%2FGCMTcwNWWnc.mp3"
+  },
+  {
+    "id": "2",
+    "title": "Chill Corporate",
+    "artist": "Zapsplat",
+    "albumArtUrl": "https://www.zapsplat.com/wp-content/uploads/2015/09/music_zapsplat_chill_corporate.png",
+    "audioUrl": "https://www.zapsplat.com/wp-content/uploads/2015/09/music_zapsplat_chill_corporate.mp3"
+  },
+  {
+    "id": "3",
+    "title": "Smooth Jazz Loop",
+    "artist": "Zapsplat",
+    "albumArtUrl": "https://www.zapsplat.com/wp-content/uploads/2015/09/music_zapsplat_smooth_jazz_loop.png",
+    "audioUrl": "https://www.zapsplat.com/wp-content/uploads/2015/09/music_zapsplat_smooth_jazz_loop.mp3"
   }
 ]
