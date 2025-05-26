@@ -1,5 +1,6 @@
 plugins {
-    id("com.android.application") // Use 'id' for direct plugin application in Groovy for simple plugins
+    id("com.android.application")
+    // Use 'id' for direct plugin application in Groovy for simple plugins
     id("org.jetbrains.kotlin.android")
     id("kotlin-parcelize") // Plugin for Parcelable
     id("com.google.devtools.ksp") // Explicitly define KSP plugin as you use it for Moshi
@@ -58,8 +59,10 @@ dependencies {
 
     // Standard Android UI Libraries for View-based app
     implementation 'androidx.appcompat:appcompat:1.6.1' // Add this for basic app compatibility
-    implementation 'com.google.android.material:material:1.12.0' // Standard Material Design for Views
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4' // For ConstraintLayouts in XML
+    implementation 'com.google.android.material:material:1.12.0'
+    // Standard Material Design for Views
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    // For ConstraintLayouts in XML
 
     // Testing
     testImplementation(libs.junit)
@@ -80,16 +83,24 @@ dependencies {
     // Glide for image loading
     // Choose ONE way to declare Glide: either directly or via libs.versions.toml
     // Using libs.versions.toml is preferred for consistency:
-    implementation(libs.glide) // This refers to glide = { module = "com.github.bumptech.glide:glide", version.ref = "glide" } (4.15.1)
+    implementation(libs.glide)
+    // This refers to glide = { module = "com.github.bumptech.glide:glide", version.ref = "glide" } (4.15.1)
     // For Glide's annotation processor with KSP, use ksp. If not using KSP, use annotationProcessor.
     // Since you have the KSP plugin, let's use KSP for Glide if available.
     // NOTE: Glide's KSP compiler was added in later versions (4.16.0+).
     // If 4.15.1 doesn't have KSP compiler, you might need to use annotationProcessor OR upgrade Glide to 4.16.0.
     // Let's assume you want to use KSP if possible for all processors.
-    ksp 'com.github.bumptech.glide:compiler:4.16.0' // Use 4.16.0 here if 4.15.1 doesn't have KSP support
+    ksp 'com.github.bumptech.glide:compiler:4.16.0'
+    // Use 4.16.0 here if 4.15.1 doesn't have KSP support
     // If the above fails, revert to: annotationProcessor 'com.github.bumptech.glide:compiler:4.15.1'
 
     // Remove redundant Material/Material3 declarations
     // implementation libs.androidx.compose.material3.material3 // This is a Compose material3 library
     // implementation libs.material.v1110 // Redundant if using com.google.android.material:material:1.12.0
+
+    // ... other dependencies
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1' // For coroutines
 }
