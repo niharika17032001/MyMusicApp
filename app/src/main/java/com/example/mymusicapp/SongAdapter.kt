@@ -7,7 +7,7 @@ import com.bumptech.glide.Glide
 import com.example.mymusicapp.databinding.ItemSongBinding // CHANGED HERE
 
 class SongAdapter(
-    private val songs: List<Song>,
+    private var songs: ArrayList<Song>, // Change to var and ArrayList to make it mutable
     private val onItemClick: (Song, Int) -> Unit // Pass song object and its position
 ) : RecyclerView.Adapter<SongAdapter.SongViewHolder>() {
 
@@ -40,4 +40,11 @@ class SongAdapter(
     }
 
     override fun getItemCount(): Int = songs.size
+
+    // New method to update the list of songs in the adapter
+    fun updateList(newList: List<Song>) {
+        songs.clear() // Clear existing songs
+        songs.addAll(newList) // Add all new songs
+        notifyDataSetChanged() // Notify RecyclerView that data has changed
+    }
 }
