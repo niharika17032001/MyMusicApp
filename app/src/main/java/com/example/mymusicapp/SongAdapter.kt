@@ -1,10 +1,10 @@
-package com.example.mymusicapp // CHANGED HERE
+package com.example.mymusicapp
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.example.mymusicapp.databinding.ItemSongBinding // CHANGED HERE
+import com.example.mymusicapp.databinding.ItemSongBinding
 
 class SongAdapter(
     private var songs: ArrayList<Song>, // Change to var and ArrayList to make it mutable
@@ -41,10 +41,17 @@ class SongAdapter(
 
     override fun getItemCount(): Int = songs.size
 
-    // New method to update the list of songs in the adapter
+    // New method to add songs for pagination
+    fun addSongs(newSongs: List<Song>) {
+        val startPosition = songs.size
+        songs.addAll(newSongs)
+        notifyItemRangeInserted(startPosition, newSongs.size) // Efficiently notify adapter
+    }
+
+    // Existing method to update the list, primarily for search filtering
     fun updateList(newList: List<Song>) {
         songs.clear() // Clear existing songs
         songs.addAll(newList) // Add all new songs
-        notifyDataSetChanged() // Notify RecyclerView that data has changed
+        notifyDataSetChanged() // Notify the adapter that the entire dataset has changed
     }
 }
