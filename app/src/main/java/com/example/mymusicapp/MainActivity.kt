@@ -24,16 +24,18 @@ class MainActivity : AppCompatActivity() {
     private val songList = ArrayList<Song>()
     private lateinit var songAdapter: SongAdapter
 
-    // Pagination variables for main list
+    // Pagination variables
     private var currentPage = 1
-    private val songsPerPage = 5
+    private val songsPerPage = 20
     private var isLoading = false
-    private var allSongsLoaded = false
+    private var allSongsLoaded = false // Tracks if all songs matching current criteria are loaded
 
-    private var searchJob: Job? = null // For debouncing search input
+    // Search variables
+    private var searchJob: Job? = null // For debouncing search
+    private var currentSearchQuery: String? = null // Stores the active search query
 
     // Base URL for your API
-    private val BASE_URL = "https://amit0987-song-json-api-hf.hf.space/"
+    private val BASE_URL = "https://amit0987-song-json-api-hf.hf.space/" // IMPORTANT: Replace with your server's base URL
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,11 +43,11 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setupRecyclerView()
-        fetchSongsFromServer() // Initial load of main song list
+        fetchSongsFromServer(currentSearchQuery) // Initial load
         setupSearchBar()
     }
 
-    private fun fetchSongsFromServer() {
+    private fun fetchSongsFromServer(query: String? = null) {
         if (isLoading || allSongsLoaded) {
             return
         }
@@ -65,18 +67,32 @@ class MainActivity : AppCompatActivity() {
                 val response = apiService.getSongs(
                     page = currentPage,
                     limit = songsPerPage,
-                    query = null // Do not pass search query for the main list
+                    query = query // Pass the search query
                 )
                 if (response.isSuccessful && response.body() != null) {
                     val newSongs = response.body()!!
                     if (newSongs.isNotEmpty()) {
-                        val startPosition = songList.size
+                        // If this is the first page of a new search, clear existing songs
+                        if (currentPage == 1) {
+                            songList.clear()
+                            songAdapter.updateList(emptyList()) // Clear adapter too
+                        }
                         songList.addAll(newSongs)
-                        songAdapter.addSongs(newSongs)
+                        songAdapter.addSongs(newSongs) // Add new songs
                         currentPage++
                     } else {
+                        // No more songs for the current query or page
+                        if (currentPage == 1) { // If no songs found on first page, show empty state
+                            songList.clear()
+                            songAdapter.updateList(emptyList())
+                            Toast.makeText(this@MainActivity, "No songs found for '$query'", Toast.LENGTH_SHORT).show()
+                        }
                         allSongsLoaded = true
-                        Toast.makeText(this@MainActivity, "All songs loaded", Toast.LENGTH_SHORT).show()
+                        if (query.isNullOrBlank()) {
+                            Toast.makeText(this@MainActivity, "All songs loaded", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(this@MainActivity, "All matching songs loaded", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 } else {
                     Toast.makeText(this@MainActivity, "Failed to fetch songs: ${response.code()}", Toast.LENGTH_SHORT).show()
@@ -98,6 +114,10 @@ class MainActivity : AppCompatActivity() {
         binding.rvSongList.layoutManager = LinearLayoutManager(this)
         songAdapter = SongAdapter(songList) { clickedSong, position ->
             val intent = Intent(this, PlayerActivity::class.java).apply {
+                // Pass the current song index and the entire loaded songList
+                // NOTE: For player activity, passing the entire songList might be problematic
+                // if you have millions of songs. Consider passing only necessary info or
+                // fetching the song details in PlayerActivity if songList gets extremely large.
                 putExtra("current_song_index", songList.indexOf(clickedSong))
                 putExtra("song_list", ArrayList(songList))
             }
@@ -105,7 +125,6 @@ class MainActivity : AppCompatActivity() {
         }
         binding.rvSongList.adapter = songAdapter
 
-        // Keep the scroll listener for main list pagination
         binding.rvSongList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
@@ -115,12 +134,13 @@ class MainActivity : AppCompatActivity() {
                 val totalItemCount = layoutManager.itemCount
                 val firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition()
 
+                // Check if we are at the end of the list and not already loading or all songs loaded
                 if (!isLoading && !allSongsLoaded) {
                     if ((visibleItemCount + firstVisibleItemPosition) >= totalItemCount
                         && firstVisibleItemPosition >= 0
-                        && totalItemCount >= songsPerPage
+                        && totalItemCount >= songsPerPage // Ensure there's enough items to potentially load more
                     ) {
-                        fetchSongsFromServer() // Load more main list data (no query)
+                        fetchSongsFromServer(currentSearchQuery) // Load more data for the current query
                     }
                 }
             }
@@ -132,19 +152,15 @@ class MainActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                searchJob?.cancel()
-                val query = s.toString().trim()
+                searchJob?.cancel() // Cancel previous search job
+                val query = s.toString().trim() // Trim whitespace
 
+                // Debounce search to prevent excessive API calls
                 searchJob = lifecycleScope.launch {
-                    delay(500) // Debounce
-                    if (query.isNotEmpty()) {
-                        // Launch SearchActivity with the query
-                        val intent = Intent(this@MainActivity, SearchActivity::class.java).apply {
-                            putExtra("search_query", query)
-                        }
-                        startActivity(intent)
-                        // Optionally clear search bar after launching new activity
-                        // binding.etSearch.text.clear()
+                    delay(500) // Wait for 500ms after user stops typing
+                    if (query != currentSearchQuery) { // Only search if query changed
+                        currentSearchQuery = query
+                        resetPaginationAndFetch() // Reset pagination and fetch with new query
                     }
                 }
                 binding.btnClearSearch.visibility = if (query.isNotEmpty()) View.VISIBLE else View.GONE
@@ -157,4 +173,29 @@ class MainActivity : AppCompatActivity() {
             binding.etSearch.text.clear()
         }
     }
+
+    // New function to reset pagination when a new search starts
+    private fun resetPaginationAndFetch() {
+        currentPage = 1
+        isLoading = false
+        allSongsLoaded = false
+        // The fetchSongsFromServer will handle clearing the list if currentPage == 1
+        fetchSongsFromServer(currentSearchQuery)
+    }
+
+    // The old client-side filterSongs is no longer needed for primary search
+    // It could potentially be used for very light, in-memory filtering if needed for other purposes.
+    /*
+    private fun filterSongs(query: String) {
+        val filteredList = if (query.isBlank()) {
+            songList
+        } else {
+            songList.filter {
+                it.title.contains(query, ignoreCase = true) ||
+                        it.artist.contains(query, ignoreCase = true)
+            }
+        }
+        songAdapter.updateList(filteredList)
+    }
+    */
 }
